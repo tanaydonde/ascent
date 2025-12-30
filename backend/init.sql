@@ -50,8 +50,14 @@ CREATE TABLE IF NOT EXISTS user_topic_stats (
 CREATE TABLE IF NOT EXISTS user_interval_stats (
     handle TEXT NOT NULL,
     topic_slug TEXT NOT NULL REFERENCES topics(slug),
-    interval_idx INT NOT NULL, -- 0 is most recent and increases as u go more in the past
-    bin_score FLOAT NOT NULL, -- M(i, T)
-    weighted_count FLOAT NOT NULL, -- sum of multiplier(j, T)
-    PRIMARY KEY (handle, topic_slug, interval_idx)
+
+    bin_idx INT NOT NULL,
+    bin_score FLOAT NOT NULL,
+
+    credits FLOAT[] NOT NULL,
+    multipliers FLOAT[] NOT NULL,
+
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (handle, topic_slug, bin_idx)
 );

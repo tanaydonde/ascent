@@ -18,6 +18,7 @@ var conn *pgx.Conn
 
 func main() {
 	update_table := true
+
 	var err error
 
 	connStr := "postgres://donde783985@localhost:5432/cf_planner"
@@ -42,15 +43,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	tagMap := GetTagMap()
+
 	if update_table {
 		problems, err := getProblems()
 		if err != nil {
 			log.Fatal(err)
 		}
-		createTables(problems)
+		createTables(problems, tagMap)
 
 		fmt.Println("database tables initialized")
 	}
+
+	Nodes, Edges := GetGraph()
+	ancestry := BuildAncestryMap(Nodes, Edges)
+
+	handle := "Benq"
+	SyncUser(handle, tagMap, ancestry)
+
+
 
 	r := chi.NewRouter()
 

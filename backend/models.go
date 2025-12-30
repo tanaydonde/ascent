@@ -29,6 +29,71 @@ type Problem struct {
     Tags []string `json:"tags"`
 }
 
+func GetTagMap() map[string]string {
+	tagMap := map[string]string{
+		// foundation
+		"implementation": "implementation",
+		"brute force": "implementation",
+
+		// ad-hoc
+		"constructive algorithms": "ad hoc",
+
+		// sorting
+		"sortings": "sortings",
+
+		// two pointers
+		"two pointers": "two pointers",
+
+		// searching
+		"binary search": "searching",
+		"ternary search": "searching",
+		"divide and conquer": "searching",
+
+		// meet-in-the-middle
+		"meet-in-the-middle": "meet in the middle",
+
+		// greedy
+		"greedy": "greedy",
+
+		// math + advanced math
+		"math": "math",
+		"number theory": "math",
+		"combinatorics": "math",
+		"matrices": "math",
+		"probabilities": "math",
+		"fft": "advanced math",
+		"chinese remainder theorem": "advanced math",
+
+		// geometry
+		"geometry": "geometry",
+
+		// graphs + advanced graphs
+		"graphs": "graphs",
+		"dfs and similar": "graphs",
+		"shortest paths": "graphs",
+		"dsu": "graphs",
+		"flows": "advanced graphs",
+		"graph matchings": "advanced graphs",
+		"2-sat": "advanced graphs",
+
+		// trees
+		"trees": "trees",
+
+		// strings + advanced strings
+		"strings": "strings",
+		"hashing": "strings",
+		"string suffix structures": "advanced strings",
+
+		// data structures
+		"data structures": "data structures",
+		"bitmasks": "data structures",
+
+		// dp
+		"dp": "dynamic programming",
+	}
+	return tagMap
+}
+
 func getProblems() ([]CFProblem, error) {
 	resp, err := http.Get("https://codeforces.com/api/problemset.problems")
 	if err != nil {
@@ -200,68 +265,7 @@ func saveProblemsToDB(problems []CFProblem, tagMap map[string]string) {
 	fmt.Println("all rated problems saved successfully")
 }
 
-func createTables(problems []CFProblem) {
-	tagMap := map[string]string{
-		// foundation
-		"implementation": "implementation",
-		"brute force": "implementation",
-
-		// ad-hoc
-		"constructive algorithms": "ad hoc",
-
-		// sorting
-		"sortings": "sortings",
-
-		// two pointers
-		"two pointers": "two pointers",
-
-		// searching
-		"binary search": "searching",
-		"ternary search": "searching",
-		"divide and conquer": "searching",
-
-		// meet-in-the-middle
-		"meet-in-the-middle": "meet in the middle",
-
-		// greedy
-		"greedy": "greedy",
-
-		// math + advanced math
-		"math": "math",
-		"number theory": "math",
-		"combinatorics": "math",
-		"matrices": "math",
-		"probabilities": "math",
-		"fft": "advanced math",
-		"chinese remainder theorem": "advanced math",
-
-		// geometry
-		"geometry": "geometry",
-
-		// graphs + advanced graphs
-		"graphs": "graphs",
-		"dfs and similar": "graphs",
-		"shortest paths": "graphs",
-		"dsu": "graphs",
-		"flows": "advanced graphs",
-		"graph matchings": "advanced graphs",
-		"2-sat": "advanced graphs",
-
-		// trees
-		"trees": "trees",
-
-		// strings + advanced strings
-		"strings": "strings",
-		"hashing": "strings",
-		"string suffix structures": "advanced strings",
-
-		// data structures
-		"data structures": "data structures",
-		"bitmasks": "data structures",
-
-		// dp
-		"dp": "dynamic programming",
-	}
+func createTables(problems []CFProblem, tagMap map[string]string) {
 	saveProblemsToDB(problems, tagMap)
 	createTopics(tagMap)
 	createRoadMap()
@@ -283,41 +287,45 @@ type GraphResponse struct {
     Edges []Edge `json:"edges"`
 }
 
-func getGraphHandler(w http.ResponseWriter, r *http.Request) {
-	var g GraphResponse
-	g.Nodes = []Node{}
-	g.Edges = []Edge{}
+func GetGraph() ([]Node, []Edge) {
+	Nodes := []Node{}
+	Edges := []Edge{}
 
 	//getting nodes
 	nodeRows, err := conn.Query(context.Background(), "SELECT id, slug, display_name FROM topics")
     if err != nil {
-        http.Error(w, "failed to fetch nodes", http.StatusInternalServerError)
-        return
+        return nil, nil
     }
     defer nodeRows.Close()
 
 	for nodeRows.Next() {
 		var n Node
         if err := nodeRows.Scan(&n.ID, &n.Slug, &n.DisplayName); err == nil {
-            g.Nodes = append(g.Nodes, n)
+            Nodes = append(Nodes, n)
         }
 	}
 
 	//getting edges
 	edgeRows, err := conn.Query(context.Background(), "SELECT parent_id, child_id FROM topic_dependencies")
     if err != nil {
-        http.Error(w, "failed to fetch edges", http.StatusInternalServerError)
-        return
+        return nil, nil
     }
     defer edgeRows.Close()
 
     for edgeRows.Next() {
         var e Edge
         if err := edgeRows.Scan(&e.From, &e.To); err == nil {
-            g.Edges = append(g.Edges, e)
+            Edges = append(Edges, e)
         }
     }
 
+	return Nodes, Edges
+}
+
+func getGraphHandler(w http.ResponseWriter, r *http.Request) {
+	var g GraphResponse
+	g.Nodes, g.Edges = GetGraph()
+	
 	w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "*")
     json.NewEncoder(w).Encode(g)
