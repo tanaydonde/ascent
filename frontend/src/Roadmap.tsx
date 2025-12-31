@@ -46,10 +46,8 @@ const Roadmap = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
-  const highlightColor = '#38bdf8';
-
   useEffect(() => {
-    fetch('http://localhost:8080/graph')
+    fetch('http://localhost:8080/api/graph')
       .then(res => res.json())
       .then((data: { nodes: BackendNode[], edges: BackendEdge[] }) => {
         
