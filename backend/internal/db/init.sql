@@ -54,8 +54,8 @@ CREATE TABLE IF NOT EXISTS user_interval_stats (
     bin_idx INT NOT NULL,
     bin_score FLOAT NOT NULL,
 
-    credits FLOAT[] NOT NULL,
-    multipliers FLOAT[] NOT NULL,
+    credits FLOAT[] NOT NULL DEFAULT '{}',
+    multipliers FLOAT[] NOT NULL DEFAULT '{}',
 
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 

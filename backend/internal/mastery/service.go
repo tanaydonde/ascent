@@ -20,12 +20,10 @@ func (s *MasteryService) Sync(handle string) error {
     return syncUser(s.conn, handle, s.tagMap, s.ancestry)
 }
 
-//to do later
-func (s *MasteryService) GetCurrentMastery(handle string, topic string) float64 {
-    return 0.0 
+func (s *MasteryService) RefreshAndGetAllStats(handle string) (map[string]MasteryResult, error) {
+    return refreshAndGetAllStats(s.conn, handle, s.tagMap)
 }
 
-//to do later
-func (s *MasteryService) GetPeakMastery(handle string, topic string) float64 {
-    return 0.0 
+func (s *MasteryService) UpdateSubmission(handle string, submission Submission) error {
+    return updateSubmission(s.conn, handle, submission, s.tagMap, s.ancestry)
 }

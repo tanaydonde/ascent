@@ -15,12 +15,13 @@ type Submission struct {
 	Rating int
 	Attempts int
 	TopicSlugs []string
+	TimeSpentMinutes int
 	SolvedAt time.Time
 }
 
 type MasteryResult struct {
-	Current float64
-	Peak    float64
+	Current float64 `json:"current"`
+	Peak    float64 `json:"peak"`
 }
 
 type CFSubmission struct {

@@ -13,6 +13,8 @@ import (
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/models"
 )
 
+const N = 14
+
 func GetTagMap() map[string]string {
 	tagMap := map[string]string{
 		// foundation
@@ -139,6 +141,20 @@ func getBaseRating(rating int, attempts int) float64 {
 	return float64(rating) * modifier
 }
 
+func getBaseRatingTime(rating int, attempts int, timeSpentMinutes int) float64 {
+	base := getBaseRating(rating, attempts)
+	const (
+		tAvg = 45
+		floor = 0.85
+		k = 10
+	)
+
+	speedFactor := (tAvg + k)/(float64(timeSpentMinutes) + k)
+	
+	speedMultiplier := floor + (1-floor)*speedFactor
+	return base * speedMultiplier
+}
+
 //calculates M given a B(j) and multipliers(j) for all j in the interval
 func calculateIntervalBin(solves []SolveAttributes) BinState {
 	if len(solves) == 0 {
@@ -177,24 +193,32 @@ func calculateIntervalBin(solves []SolveAttributes) BinState {
 	return BinState{score, credits, multiplier}
 }
 
-//computed M(i, T) given T and the array of submissions at interval i. uses CalculateIntervalBin and GetBaseRating
+func getMultiplier(targetTopic string, submission Submission, ancestry models.AncestryMap) float64 {
+	multiplier := float64(0)
+	minDist := -1
+	for _, topic := range submission.TopicSlugs {
+		if dist, ok := ancestry[topic][targetTopic]; ok {
+			if minDist == -1 || dist < minDist {
+				minDist = dist
+			}
+		}
+	}
+
+	if minDist != -1 {
+		multiplier = math.Pow(0.75, float64(minDist))
+	}
+	return multiplier
+}
+
+//computed M(i, T) given T and the array of submissions at interval i. uses calculateIntervalBin and getBaseRating
 func getTopicIntervalState(targetTopic string, intervalSubmissions []Submission, ancestry models.AncestryMap) BinState {
 	var attributes []SolveAttributes
 	
 	for _, submission := range intervalSubmissions {
-		minDist := -1
-		for _, topic := range submission.TopicSlugs {
-			if dist, ok := ancestry[topic][targetTopic]; ok {
-				if minDist == -1 || dist < minDist {
-					minDist = dist
-				}
-			}
-		}
-
-		if minDist != -1 {
+		multiplier := getMultiplier(targetTopic, submission, ancestry)
+		if multiplier > 0 {
 			base := getBaseRating(submission.Rating, submission.Attempts)
-			multipler := math.Pow(0.75, float64(minDist))
-			attributes = append(attributes, SolveAttributes{base, multipler})
+			attributes = append(attributes, SolveAttributes{base, multiplier})
 		}
 	}
 	return calculateIntervalBin(attributes)
@@ -239,16 +263,16 @@ func calculateMasteryScore(binScores []float64) MasteryResult {
 }
 
 //helper for GetBinnedSubmissions. returns index of bin given a time and int n
-func getAbsoluteBinIdx(t time.Time, n int) int {
-    return int(t.Unix() / int64(n*86400))
+func getAbsoluteBinIdx(t time.Time) int {
+    return int(t.Unix() / int64(N*86400))
 }
 
 //takes all submissions and an int n and groups them into n-day intervals
-func getBinnedSubmissions(submissions []Submission, n int) map[int][]Submission {
+func getBinnedSubmissions(submissions []Submission) map[int][]Submission {
 	binToSub := make(map[int][]Submission)
     
     for _, sub := range submissions {
-        idx := getAbsoluteBinIdx(sub.SolvedAt, n)
+        idx := getAbsoluteBinIdx(sub.SolvedAt)
         binToSub[idx] = append(binToSub[idx], sub)
     }
     return binToSub
@@ -267,11 +291,11 @@ func indexBinMap(binIdxToState map[int]BinState, minIdx int, currentBinIdx int) 
 }
 
 //returns a map, mapping each topic to its current mastery score and peak mastery score
-func calculateAllTopicMasteries(topics []string, submissions []Submission, ancestry models.AncestryMap, n int) (map[string]MasteryResult, map[string]map[int]BinState) {
+func calculateAllTopicMasteries(topics []string, submissions []Submission, ancestry models.AncestryMap) (map[string]MasteryResult, map[string]map[int]BinState) {
 	results := make(map[string]MasteryResult)
 	allStates := make(map[string]map[int]BinState)
-	binnedSubs := getBinnedSubmissions(submissions, n)
-	currentBinIdx := getAbsoluteBinIdx(time.Now(), n)
+	binnedSubs := getBinnedSubmissions(submissions)
+	currentBinIdx := getAbsoluteBinIdx(time.Now())
 
 	for _, topicSlug := range topics {
 		binIdxToState := make(map[int]BinState)
@@ -304,7 +328,7 @@ func calculateAllTopicMasteries(topics []string, submissions []Submission, ances
 }
 
 //takes in the handle and other parameters. returns cur mastery score, peak mastery score, and problems solved/failed
-func getUserMastery(handle string, tagMap map[string]string, ancestry models.AncestryMap, n int) (map[string]MasteryResult, map[string]map[int]BinState, map[string]int, error) {
+func getUserMastery(handle string, tagMap map[string]string, ancestry models.AncestryMap) (map[string]MasteryResult, map[string]map[int]BinState, map[string]int, error) {
 	url := fmt.Sprintf("https://codeforces.com/api/user.status?handle=%s", handle)
 
 	resp, err := http.Get(url)
@@ -368,6 +392,7 @@ func getUserMastery(handle string, tagMap map[string]string, ancestry models.Anc
 			Rating: firstSolve.Problem.Rating,
 			Attempts: attempts,
 			TopicSlugs: slugs,
+			TimeSpentMinutes: 0,
 			SolvedAt: time.Unix(firstSolve.CreationTimeSeconds, 0),
 		})
 	}
@@ -375,13 +400,12 @@ func getUserMastery(handle string, tagMap map[string]string, ancestry models.Anc
 	for slug := range ancestry {
 		topics = append(topics, slug)
 	}
-	masteryResults, binStates := calculateAllTopicMasteries(topics, processed, ancestry, n)
+	masteryResults, binStates := calculateAllTopicMasteries(topics, processed, ancestry)
 	return masteryResults, binStates, problemsStatus, nil
 }
 
 func syncUser(conn *pgx.Conn, handle string, tagMap map[string]string, ancestry models.AncestryMap) error {
-	const n = 14
-	masteryResults, binStates, _, err := getUserMastery(handle, tagMap, ancestry, n)
+	masteryResults, binStates, _, err := getUserMastery(handle, tagMap, ancestry)
     if err != nil {
         return err
     }
@@ -425,4 +449,175 @@ func syncUser(conn *pgx.Conn, handle string, tagMap map[string]string, ancestry 
 		}
 	}
 	return tx.Commit(context.Background())
+}
+
+func getUserTopicStats(tx pgx.Tx, handle string, topic string) (float64, float64, error) {
+	var cur, peak float64
+	query := `SELECT mastery_score, peak_score FROM user_topic_stats WHERE handle = $1 AND topic_slug = $2`
+	
+	err := tx.QueryRow(context.Background(), query, handle, topic).Scan(&cur, &peak)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return 0, 0, nil
+		}
+		return 0, 0, err
+	}
+	return cur, peak, nil
+}
+
+func getTopics(tagMap map[string]string) map[string]bool {
+	topics := make(map[string]bool)
+	topics["tree dp"] = true
+	for _, topic := range tagMap {
+		topics[topic] = true
+	}
+	return topics
+}
+
+func updateSubmission(conn *pgx.Conn, handle string, submission Submission, tagMap map[string]string, ancestry models.AncestryMap) error {
+	var base float64
+	if submission.TimeSpentMinutes > 0 {
+		base = getBaseRatingTime(submission.Rating, submission.Attempts, submission.TimeSpentMinutes)
+	} else {
+		base = getBaseRating(submission.Rating, submission.Attempts)
+	}
+	solveBinIdx := getAbsoluteBinIdx(submission.SolvedAt)
+	nowBinIdx := getAbsoluteBinIdx(time.Now())
+
+	tx, err := conn.Begin(context.Background())
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback(context.Background())
+
+	topics := getTopics(tagMap)
+
+	for topic := range topics {
+		multiplier := getMultiplier(topic, submission, ancestry)
+
+		if multiplier > 0 {
+			credit := base * multiplier
+
+			err := updateBinStats(tx, handle, topic, solveBinIdx, credit, multiplier)
+			if err != nil {
+				return err
+			}
+			err = refreshTopicMastery(tx, handle, topic, nowBinIdx)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit(context.Background())
+}
+
+func updateBinStats(tx pgx.Tx, handle string, topic string, binIdx int, credit float64, multiplier float64) error {
+	var credits, multipliers []float64
+	err := tx.QueryRow(context.Background(), `
+		SELECT credits, multipliers FROM user_interval_stats 
+		WHERE handle = $1 AND topic_slug = $2 AND bin_idx = $3`,
+		handle, topic, binIdx).Scan(&credits, &multipliers)
+
+	if err != nil && err != pgx.ErrNoRows {
+		return err
+	}
+
+	credits = append(credits, credit)
+	multipliers = append(multipliers, multiplier)
+
+	var attributes []SolveAttributes
+	for i := range credits {
+		attributes = append(attributes, SolveAttributes{BaseRating: credits[i] / multipliers[i], Multiplier: multipliers[i]})
+	}
+	newBinState := calculateIntervalBin(attributes)
+
+	_, err = tx.Exec(context.Background(), `
+		INSERT INTO user_interval_stats (handle, topic_slug, bin_idx, bin_score, credits, multipliers, last_updated)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		ON CONFLICT (handle, topic_slug, bin_idx) DO UPDATE SET
+			bin_score = EXCLUDED.bin_score,
+			credits = EXCLUDED.credits,
+			multipliers = EXCLUDED.multipliers,
+			last_updated = NOW()`,
+		handle, topic, binIdx, newBinState.Score, credits, multipliers)
+
+	return err
+}
+
+func refreshAndGetAllStats(conn *pgx.Conn, handle string, tagMap map[string]string) (map[string]MasteryResult, error) {
+	currentBinIdx := getAbsoluteBinIdx(time.Now())
+	topics := getTopics(tagMap)
+
+	tx, err := conn.Begin(context.Background())
+    if err != nil {
+        return nil, err
+    }
+    defer tx.Rollback(context.Background())
+
+	mastery := make(map[string]MasteryResult)
+
+	for topic := range topics {
+		//refreshing
+		err = refreshTopicMastery(tx, handle, topic, currentBinIdx)
+		if err != nil {
+			return nil, err
+		}
+
+		//getting
+		cur, peak, err := getUserTopicStats(tx, handle, topic)
+		if err != nil {
+			return nil, err
+		}
+		mastery[topic] = MasteryResult{cur, peak}
+	}
+	if err := tx.Commit(context.Background()); err != nil {
+		return nil, err
+	}
+	return mastery, nil
+}
+
+func refreshTopicMastery(tx pgx.Tx, handle string, topic string, currentBinIdx int) error {
+	rows, err := tx.Query(context.Background(), `
+		SELECT bin_idx, bin_score FROM user_interval_stats 
+		WHERE handle = $1 AND topic_slug = $2 ORDER BY bin_idx DESC`, 
+		handle, topic)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	binMap := make(map[int]float64)
+	minIdx := currentBinIdx
+	for rows.Next() {
+		var idx int
+		var score float64
+		rows.Scan(&idx, &score)
+		binMap[idx] = score
+		if idx < minIdx {
+			minIdx = idx
+		}
+	}
+
+	if len(binMap) == 0 {
+		return nil
+	}
+
+	var scores []float64
+	for i := currentBinIdx; i >= minIdx; i-- {
+		scores = append(scores, binMap[i])
+	}
+
+	result := calculateMasteryScore(scores)
+
+	_, err = tx.Exec(context.Background(), `
+		INSERT INTO user_topic_stats (handle, topic_slug, mastery_score, peak_score, last_updated)
+		VALUES ($1, $2, $3, $4, NOW())
+		ON CONFLICT (handle, topic_slug) DO UPDATE SET
+			mastery_score = EXCLUDED.mastery_score,
+			peak_score = GREATEST(user_topic_stats.peak_score, EXCLUDED.peak_score),
+			last_updated = NOW()`,
+		handle, topic, result.Current, result.Peak)
+
+	return err
 }
