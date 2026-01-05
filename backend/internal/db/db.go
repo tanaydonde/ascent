@@ -4,12 +4,12 @@ import (
     "context"
     "fmt"
     "os"
-    "github.com/jackc/pgx/v5"
+    "github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect() *pgx.Conn {
+func Connect() *pgxpool.Pool {
     connStr := "postgres://donde783985@localhost:5432/cf_planner"
-    conn, err := pgx.Connect(context.Background(), connStr)
+    conn, err := pgxpool.New(context.Background(), connStr)
     if err != nil {
         fmt.Fprintf(os.Stderr, "cannot connect to database: %v\n", err)
         os.Exit(1)

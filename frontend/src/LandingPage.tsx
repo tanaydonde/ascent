@@ -43,11 +43,11 @@ const LandingPage = ({ onSuccess }: LandingPageProps) => {
       <div className="w-full max-w-md p-8 bg-slate-900/50 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-sm">
         
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold tracking-tight text-white mb-2">
-            <span className="text-sky-400">CF</span> Mastery
+          <h1 className="text-5xl font-bold bg-gradient-to-br from-white to-sky-500 bg-clip-text text-transparent pb-1">
+            Ascent
           </h1>
           <p className="text-slate-400 text-sm">
-            Enter your handle to generate your curriculum
+            Enter your handle to begin
           </p>
         </div>
 
@@ -93,7 +93,7 @@ const LandingPage = ({ onSuccess }: LandingPageProps) => {
                 Syncing History...
               </span>
             ) : (
-              'Initialize Roadmap'
+              'Sync Handle'
             )}
           </button>
         </form>

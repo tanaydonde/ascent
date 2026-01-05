@@ -6,13 +6,13 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/mastery"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/models"
 )
 
 type Handler struct {
-    Conn *pgx.Conn
+    Conn *pgxpool.Pool
     Service *mastery.MasteryService
 }
 
@@ -36,7 +36,6 @@ func (h *Handler) SyncUserHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetUserStats(w http.ResponseWriter, r *http.Request) {
     handle := chi.URLParam(r, "handle")
     
-    // This reuses your existing service logic
     stats, err := h.Service.RefreshAndGetAllStats(handle) 
     if err != nil {
         http.Error(w, err.Error(), 500)
@@ -86,4 +85,50 @@ func (h *Handler) SubmitProblemHandler(w http.ResponseWriter, r *http.Request) {
 
     w.WriteHeader(http.StatusOK)
     json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func (h *Handler) GetDailyHandler(w http.ResponseWriter, r *http.Request) {
+    handle := r.URL.Query().Get("handle")
+    
+    problem, err := h.Service.RecommendDailyProblem(handle)
+    if err != nil {
+        http.Error(w, "failed to generate daily", 500)
+        return
+    }
+
+    json.NewEncoder(w).Encode(problem)
+}
+
+func (h *Handler) GetRecentSolvedHandler(w http.ResponseWriter, r *http.Request) {
+    handle := chi.URLParam(r, "handle")
+    if handle == "" {
+        http.Error(w, "handle required", 400)
+        return
+    }
+
+    solves, err := h.Service.GetLastKSolves(handle, 8, "solved")
+    if err != nil {
+        http.Error(w, "failed to fetch recent solves", 500)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(solves)
+}
+
+func (h *Handler) GetRecentUnsolvedHandler(w http.ResponseWriter, r *http.Request) {
+    handle := chi.URLParam(r, "handle")
+    if handle == "" {
+        http.Error(w, "handle required", 400)
+        return
+    }
+
+    solves, err := h.Service.GetLastKSolves(handle, 8, "unsolved")
+    if err != nil {
+        http.Error(w, "failed to fetch recent solves", 500)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(solves)
 }

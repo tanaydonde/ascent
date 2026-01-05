@@ -147,16 +147,14 @@ const SubmitModal = ({ isOpen, onClose, problem, onSubmit, isSubmitting, isSucce
 };
 
 const getProblemLink = (problemId: string) => {
-  const match = problemId.match(/^(\d+)(.*)$/);
+  const match = problemId.match(/^(\d+)(.+)$/);
   if (match) {
-    const contestId = match[1];
-    const index = match[2];
-    return `https://codeforces.com/contest/${contestId}/problem/${index}`;
+    return `https://codeforces.com/problemset/problem/${match[1]}/${match[2]}`;
   }
-  return `https://codeforces.com/problemset/problem/${problemId}`; 
+  return `https://codeforces.com/problemset/problem/${problemId}`;
 };
 
-const Roadmap = () => {
+const Training = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
@@ -248,7 +246,7 @@ const Roadmap = () => {
 
     const fetchProblems = async () => {
       setLoadingProblems(true);
-      const handle = localStorage.getItem('cf_handle');
+      const handle = sessionStorage.getItem('cf_handle');
       if (!handle) return;
 
       const inc = DIFFICULTY_CONFIG[difficulty].inc;
@@ -281,7 +279,7 @@ const Roadmap = () => {
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const handle = localStorage.getItem('cf_handle');
+    const handle = sessionStorage.getItem('cf_handle');
     if (!handle) {
         setSubmitError("No handle found. Please log in.");
         setIsSubmitting(false);
@@ -336,7 +334,7 @@ const Roadmap = () => {
 
           <h3 className="text-sky-400 font-bold text-sm flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"/>
-            Interactive Skill Tree
+            Training
           </h3>
           <p className="text-slate-400 text-xs mt-2 leading-relaxed">
             Select any topic node to generate a personalized problem set tailored to your rating.
@@ -484,4 +482,4 @@ const Roadmap = () => {
   );
 };
 
-export default Roadmap;
+export default Training;

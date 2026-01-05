@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -25,7 +24,7 @@ func test(service *mastery.MasteryService) {
 func main() {
 	testing := false
 	conn := db.Connect()
-	defer conn.Close(context.Background())
+	defer conn.Close()
 
 	service := mastery.NewMasteryService(conn)
 
@@ -35,7 +34,7 @@ func main() {
 		return
 	}
 
-	h := &api.Handler{Conn: conn, Service: service,}
+	h := &api.Handler{Conn: conn, Service: service}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -52,8 +51,11 @@ func main() {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/problems/{topic}", h.GetProblemsByTopic) // /api/problems/{topic}?handle=[handle]&inc=[inc]
+		r.Get("/daily", h.GetDailyHandler)
 		r.Get("/graph", h.GetGraphHandler)
 		r.Get("/stats/{handle}", h.GetUserStats)
+		r.Get("/recent/solved/{handle}", h.GetRecentSolvedHandler)
+		r.Get("/recent/unsolved/{handle}", h.GetRecentUnsolvedHandler)
 		r.Post("/sync/{handle}", h.SyncUserHandler)
 		r.Post("/submit/{handle}", h.SubmitProblemHandler)
 	})

@@ -10,7 +10,7 @@ import (
 
 func main() {
 	conn := db.Connect()
-	defer conn.Close(context.Background())
+	defer conn.Close()
 
 	fmt.Println("successfully connected to the database")
 

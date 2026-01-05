@@ -8,19 +8,19 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/mastery"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/models"
 )
 
-func FillTables(conn *pgx.Conn) {
+func FillTables(conn *pgxpool.Pool) {
 	tagMap := mastery.GetTagMap()
 	saveProblemsToDB(tagMap, conn)
 	createTopics(tagMap, conn)
 	createRoadMap(conn)
 }
 
-func saveProblemsToDB(tagMap map[string]string, conn *pgx.Conn) {
+func saveProblemsToDB(tagMap map[string]string, conn *pgxpool.Pool) {
 	problems, _ := getProblems()
 	for _, p := range problems {
 		if p.Rating == 0 {
@@ -75,7 +75,7 @@ func saveProblemsToDB(tagMap map[string]string, conn *pgx.Conn) {
 	fmt.Println("all rated problems saved successfully")
 }
 
-func createTopics(tagMap map[string]string, conn *pgx.Conn) {
+func createTopics(tagMap map[string]string, conn *pgxpool.Pool) {
 	uniqueTopics := make(map[string]bool)
 	for _, topicSlug := range tagMap {
 		uniqueTopics[topicSlug] = true
@@ -107,7 +107,7 @@ func createTopics(tagMap map[string]string, conn *pgx.Conn) {
 	}
 }
 
-func createRoadMap(conn *pgx.Conn) {
+func createRoadMap(conn *pgxpool.Pool) {
 	// 19 edges in total
 	linkTopics("implementation", "ad hoc", conn)
 	linkTopics("implementation", "sortings", conn)
@@ -180,7 +180,7 @@ func getDisplayName(topic string) string {
 	return strings.Join(words, " ")
 }
 
-func linkTopics(parent string, child string, conn *pgx.Conn) {
+func linkTopics(parent string, child string, conn *pgxpool.Pool) {
 	query := `
 		INSERT INTO topic_dependencies (parent_id, child_id)
 		SELECT p.id, c.id FROM topics p, topics c WHERE p.slug = $1 AND c.slug = $2

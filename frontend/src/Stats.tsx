@@ -92,7 +92,7 @@ const Stats = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const handle = localStorage.getItem('cf_handle');
+      const handle = sessionStorage.getItem('cf_handle');
       if (!handle) return;
 
       try {
@@ -203,7 +203,7 @@ const Stats = () => {
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col">
-            <h3 className="text-slate-400 text-sm font-mono uppercase tracking-wider mb-4 ml-2">Highest Decay (Needs Practice)</h3>
+            <h3 className="text-slate-400 text-sm font-mono uppercase tracking-wider mb-4 ml-2">Rustiest Topics</h3>
             <div className="flex-1 min-h-0 overflow-y-auto pr-2">
               {[...data]
                 .sort((a, b) =>{

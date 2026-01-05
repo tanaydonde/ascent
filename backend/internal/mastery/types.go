@@ -46,3 +46,11 @@ type CFProblemOutput struct {
 	Rating int `json:"rating"`
 	Tags []string `json:"tags"`
 }
+
+type CFSolveOutput struct {
+	ID string `json:"id"`
+	Name string `json:"name"`
+	Rating int `json:"rating"`
+	Tags []string `json:"tags"`
+	SolvedAt time.Time `json:"solvedAt"`
+}

@@ -3,12 +3,12 @@ package models
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AncestryMap map[string]map[string]int;
 
-func GetGraph(conn *pgx.Conn) ([]Node, []Edge) {
+func GetGraph(conn *pgxpool.Pool) ([]Node, []Edge) {
     var nodes []Node
     var edges []Edge
 

@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
-
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/models"
 )
 
@@ -303,7 +305,7 @@ func getTopicSlugs(problemTags []string, tagMap map[string]string) []string {
 	return tagSlug
 }
 
-func syncUser(conn *pgx.Conn, handle string, tagMap map[string]string, ancestry models.AncestryMap) error {
+func syncUser(conn *pgxpool.Pool, handle string, tagMap map[string]string, ancestry models.AncestryMap) error {
 	url := fmt.Sprintf("https://codeforces.com/api/user.status?handle=%s", handle)
     resp, err := http.Get(url)
     if err != nil {
@@ -396,7 +398,7 @@ func syncUser(conn *pgx.Conn, handle string, tagMap map[string]string, ancestry 
     return tx.Commit(context.Background())
 }
 
-func updateSubmissionFull(conn *pgx.Conn, handle string, problem ProblemSolveInput, tagMap map[string]string, ancestry models.AncestryMap) error {
+func updateSubmissionFull(conn *pgxpool.Pool, handle string, problem ProblemSolveInput, tagMap map[string]string, ancestry models.AncestryMap) error {
 
 	var problemStatus string
     err := conn.QueryRow(context.Background(), 
@@ -450,7 +452,7 @@ func updateSubmission(tx pgx.Tx, handle string, submission Submission, tagMap ma
         ON CONFLICT (handle, problem_id) DO UPDATE SET
             status = 'solved',
             last_attempted_at = EXCLUDED.last_attempted_at`,
-        handle, submission.ID, submission.SolvedAt)
+        handle, submission.ID, submission.SolvedAt.UTC())
     if err != nil {
         return err
     }
@@ -506,7 +508,7 @@ func updateBinStats(tx pgx.Tx, handle string, topic string, binIdx int, credit f
 	return err
 }
 
-func refreshAndGetAllStats(conn *pgx.Conn, handle string, tagMap map[string]string) (map[string]MasteryResult, error) {
+func refreshAndGetAllStats(conn *pgxpool.Pool, handle string, tagMap map[string]string) (map[string]MasteryResult, error) {
 	currentBinIdx := getAbsoluteBinIdx(time.Now())
 	topics := getTopics(tagMap)
 
@@ -692,7 +694,7 @@ func hydrateSubmission(handle string, problem ProblemSolveInput, tagMap map[stri
     }, nil
 }
 
-func recommendProblem(conn *pgx.Conn, handle string, topic string, targetInc int, k int) ([]CFProblemOutput, error) {
+func recommendProblem(conn *pgxpool.Pool, handle string, topic string, targetInc int, k int) ([]CFProblemOutput, error) {
 	userRatings := make(map[string]int)
 	
 	rows, err := conn.Query(context.Background(), `
@@ -789,4 +791,119 @@ func recommendProblem(conn *pgx.Conn, handle string, topic string, targetInc int
 		}
 	}
 	return finalRecommendations, nil
+}
+
+func recommendDailyProblem(conn *pgxpool.Pool, handle string) (CFProblemOutput, error) {
+
+	type TopicStat struct {
+		Slug string
+		Current int
+		Decay int
+	}
+
+	rows, err := conn.Query(context.Background(), `
+		SELECT topic_slug, 
+		       CAST(mastery_score AS INTEGER) as current, 
+		       CAST(peak_score - mastery_score AS INTEGER) as decay
+		FROM user_topic_stats 
+		WHERE handle = $1 AND mastery_score > 0`, handle)
+	if err != nil {
+		return CFProblemOutput{}, fmt.Errorf("failed to fetch stats: %w", err)
+	}
+	defer rows.Close()
+
+	var activeTopics []TopicStat
+	for rows.Next() {
+		var t TopicStat
+		if err := rows.Scan(&t.Slug, &t.Current, &t.Decay); err != nil {
+			return CFProblemOutput{}, err
+		}
+		activeTopics = append(activeTopics, t)
+	}
+
+	fallback := func() (CFProblemOutput, error) {
+		res, err := recommendProblem(conn, handle, "implementation", 100, 1)
+		if err != nil {
+			return CFProblemOutput{}, err
+		}
+		if len(res) > 0 {
+			return res[0], nil
+		}
+		return CFProblemOutput{}, fmt.Errorf("no problems found")
+	}
+
+	if len(activeTopics) == 0 {
+		return fallback()
+	}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	roll := r.Intn(100)
+
+	if roll < 50 {
+		sort.Slice(activeTopics, func(i int, j int) bool {
+			if activeTopics[i].Decay != activeTopics[j].Decay {
+				return activeTopics[i].Decay > activeTopics[j].Decay
+			}
+			return activeTopics[i].Current < activeTopics[j].Current
+		})
+	} else if roll < 80 {
+		sort.Slice(activeTopics, func(i int, j int) bool {
+			if activeTopics[i].Decay != activeTopics[j].Decay {
+				return activeTopics[i].Decay < activeTopics[j].Decay
+			}
+			return activeTopics[i].Current > activeTopics[j].Current
+		})
+	} else {
+		r.Shuffle(len(activeTopics), func(i int, j int) {
+			activeTopics[i], activeTopics[j] = activeTopics[j], activeTopics[i]
+		})
+	}
+
+	count := min(3, len(activeTopics))
+	candidates := activeTopics[:count]
+
+	r.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
+
+	for _, topic := range candidates {
+		recommendations, err := recommendProblem(conn, handle, topic.Slug, 100, 1)
+		
+		if err == nil && len(recommendations) > 0 {
+			return recommendations[0], nil
+		}
+	}
+	return fallback()
+}
+
+func getLastKSolves(conn *pgxpool.Pool, handle string, k int, status string) ([]CFSolveOutput, error ) {
+	query := `
+        SELECT p.problem_id, p.name, p.rating, p.tags, up.last_attempted_at 
+        FROM user_problems up
+        JOIN problems p ON up.problem_id = p.problem_id
+        WHERE up.handle = $1 AND up.status = $3
+        ORDER BY up.last_attempted_at DESC 
+        LIMIT $2
+    `
+
+	rows, err := conn.Query(context.Background(), query, handle, k, status)
+	if err != nil {
+        return nil, err
+    }
+	defer rows.Close()
+
+	var recentSolves []CFSolveOutput
+    for rows.Next() {
+        var p CFSolveOutput
+        if err := rows.Scan(&p.ID, &p.Name, &p.Rating, &p.Tags, &p.SolvedAt); err != nil {
+            return nil, err
+        }
+        recentSolves = append(recentSolves, p)
+    }
+
+	if err := rows.Err(); err != nil {
+        return nil, err
+    }
+
+	return recentSolves, nil
 }
