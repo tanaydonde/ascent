@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/api"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/db"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/mastery"
@@ -23,7 +27,32 @@ func test(service *mastery.MasteryService) {
 
 func main() {
 	testing := false
+
+	err := godotenv.Load("../../../app.env")
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "can't load .env")
+		return
+    }
+
 	conn := db.Connect()
+
+	for i := range 8 {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		err := conn.Ping(ctx)
+		cancel()
+
+		if err == nil {
+			break
+		}
+
+		if i == 7 {
+			log.Fatalf("database not reachable after retries: %v", err)
+		}
+
+		sleep := time.Duration(200*(1<<i)) * time.Millisecond
+		time.Sleep(sleep)
+	}
+	
 	defer conn.Close()
 
 	service := mastery.NewMasteryService(conn)
@@ -41,7 +70,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"http://localhost:5173"}, // Your frontend URLs
+		AllowedOrigins: []string{"http://localhost:5173"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding"},
 		ExposedHeaders: []string{"Link"},

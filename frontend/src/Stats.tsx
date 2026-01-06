@@ -57,13 +57,12 @@ const getDecayColorStyle = (decay: number) => {
 };
 
 const getRatingColor = (rating: number) => {
-  if (rating < 1200) return "text-gray-400";
+  if (rating < 1000) return "text-gray-400";
   if (rating < 1400) return "text-green-500";
   if (rating < 1600) return "text-cyan-400";
-  if (rating < 1900) return "text-blue-500";
-  if (rating < 2100) return "text-purple-500";
-  if (rating < 2300) return "text-orange-400";
-  if (rating < 2400) return "text-orange-500";
+  if (rating < 1800) return "text-blue-500";
+  if (rating < 2000) return "text-purple-500";
+  if (rating < 2400) return "text-orange-400";
   return "text-red-500";
 };
 
@@ -123,7 +122,13 @@ const Stats = () => {
   const currentRating = calculateWeightedRating(data.map(d => d.current));
   const peakRating = calculateWeightedRating(data.map(d => d.peak));
 
-  if (loading) return <div className="text-white p-10">Loading Stats...</div>;
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center text-slate-500 font-mono animate-pulse">
+        LOADING...
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full overflow-y-auto bg-slate-900/50 p-8 scrollbar-thin scrollbar-thumb-slate-700">

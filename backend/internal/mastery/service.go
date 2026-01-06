@@ -6,22 +6,23 @@ import (
 )
 
 type MasteryService struct {
-    tagMap   map[string]string
+    tagMap map[string]string
     ancestry models.AncestryMap
 	conn *pgxpool.Pool
 }
 
 func NewMasteryService(conn *pgxpool.Pool) *MasteryService {
     nodes, edges := models.GetGraph(conn)
-    return &MasteryService{tagMap: GetTagMap(), ancestry: BuildAncestryMap(nodes, edges), conn: conn}
+    anc := BuildAncestryMap(nodes, edges)
+    return &MasteryService{tagMap: GetTagMap(), ancestry: anc, conn: conn}
 }
 
 func (s *MasteryService) Sync(handle string) error {
     return syncUser(s.conn, handle, s.tagMap, s.ancestry)
 }
 
-func (s *MasteryService) RefreshAndGetAllStats(handle string) (map[string]MasteryResult, error) {
-    return refreshAndGetAllStats(s.conn, handle, s.tagMap)
+func (s *MasteryService) GetAllStats(handle string) (map[string]MasteryResult, error) {
+    return getAllStats(s.conn, handle, s.tagMap)
 }
 
 func (s *MasteryService) UpdateSubmission(handle string, problem ProblemSolveInput) error {

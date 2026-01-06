@@ -36,7 +36,7 @@ func (h *Handler) SyncUserHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetUserStats(w http.ResponseWriter, r *http.Request) {
     handle := chi.URLParam(r, "handle")
     
-    stats, err := h.Service.RefreshAndGetAllStats(handle) 
+    stats, err := h.Service.GetAllStats(handle) 
     if err != nil {
         http.Error(w, err.Error(), 500)
         return

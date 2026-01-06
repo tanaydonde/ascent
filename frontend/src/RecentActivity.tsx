@@ -63,11 +63,11 @@ const RecentActivity = () => {
   };
 
   const getRatingColor = (rating: number) => {
-    if (rating < 1200) return "text-gray-400 border-gray-500/30 bg-gray-500/10";
+    if (rating < 1000) return "text-gray-400 border-gray-500/30 bg-gray-500/10";
     if (rating < 1400) return "text-green-400 border-green-500/30 bg-green-500/10";
     if (rating < 1600) return "text-cyan-400 border-cyan-500/30 bg-cyan-500/10";
-    if (rating < 1900) return "text-blue-400 border-blue-500/30 bg-blue-500/10";
-    if (rating < 2100) return "text-violet-400 border-violet-500/30 bg-violet-500/10";
+    if (rating < 1800) return "text-blue-400 border-blue-500/30 bg-blue-500/10";
+    if (rating < 2000) return "text-violet-400 border-violet-500/30 bg-violet-500/10";
     if (rating < 2400) return "text-orange-400 border-orange-500/30 bg-orange-500/10";
     return "text-red-400 border-red-500/30 bg-red-500/10";
   };

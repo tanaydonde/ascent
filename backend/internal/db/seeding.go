@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/mastery"
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/models"
@@ -15,25 +16,25 @@ import (
 
 func FillTables(conn *pgxpool.Pool) {
 	tagMap := mastery.GetTagMap()
+	fmt.Println("saving problems to db")
 	saveProblemsToDB(tagMap, conn)
+	fmt.Println("finished saving problems to db")
 	createTopics(tagMap, conn)
 	createRoadMap(conn)
 }
 
 func saveProblemsToDB(tagMap map[string]string, conn *pgxpool.Pool) {
 	problems, _ := getProblems()
+
+	rows := make([][]any, 0, len(problems))
+
 	for _, p := range problems {
-		if p.Rating == 0 {
+		if p.Rating == 0 || cyrillic(p.Name) {
 			continue
 		}
 
-		if cyrillic(p.Name) {
-			continue
-		}
-
-		topicSet := make(map[string]bool)
-		hasDP := false
-		hasTrees := false
+		topicSet := map[string]bool{}
+		hasDP, hasTrees := false, false
 		for _, tag := range p.Tags {
 			if topic, ok := tagMap[tag]; ok {
 				topicSet[topic] = true
@@ -50,28 +51,62 @@ func saveProblemsToDB(tagMap map[string]string, conn *pgxpool.Pool) {
 		}
 
 		filtered := make([]string, 0, len(topicSet))
-		for topic := range topicSet {
-			filtered = append(filtered, topic)
+		for t := range topicSet {
+			filtered = append(filtered, t)
 		}
-		
 		if len(filtered) == 0 {
 			continue
 		}
 
 		problemID := fmt.Sprintf("%d%s", p.ContestID, p.Index)
-		
-		query := `
-			INSERT INTO problems (problem_id, name, rating, tags)
-			VALUES ($1, $2, $3, $4)
-			ON CONFLICT (problem_id) DO UPDATE
-			SET rating = EXCLUDED.rating, tags = EXCLUDED.tags;
-		`
-		_, err := conn.Exec(context.Background(), query, problemID, p.Name, p.Rating, filtered)
-		if err != nil {
-			fmt.Printf("could not save problem %s: %v\n", problemID, err)
-		}
+		rows = append(rows, []any{problemID, p.Name, p.Rating, filtered})
 	}
-	//fmt.Println("total problem count:", count)
+
+	tx, err := conn.Begin(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer tx.Rollback(context.Background())
+
+	_, err = tx.Exec(context.Background(), `
+		CREATE TEMP TABLE tmp_problems (
+			problem_id TEXT PRIMARY KEY,
+			name TEXT NOT NULL DEFAULT '',
+			rating INT NOT NULL,
+			tags TEXT[]
+		) ON COMMIT DROP;
+	`)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = tx.CopyFrom(
+		context.Background(),
+		pgx.Identifier{"tmp_problems"},
+		[]string{"problem_id", "name", "rating", "tags"},
+		pgx.CopyFromRows(rows),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = tx.Exec(context.Background(), `
+		INSERT INTO problems (problem_id, name, rating, tags)
+		SELECT problem_id, name, rating, tags
+		FROM tmp_problems
+		ON CONFLICT (problem_id) DO UPDATE
+		SET name = EXCLUDED.name,
+		    rating = EXCLUDED.rating,
+		    tags = EXCLUDED.tags;
+	`)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
+		panic(err)
+	}
+
 	fmt.Println("all rated problems saved successfully")
 }
 

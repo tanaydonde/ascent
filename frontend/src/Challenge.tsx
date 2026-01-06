@@ -180,7 +180,7 @@ const Challenge = () => {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center text-slate-500 font-mono animate-pulse">
-        CALCULATING OPTIMAL TRAJECTORY...
+        LOADING...
       </div>
     );
   }

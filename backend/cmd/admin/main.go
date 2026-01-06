@@ -6,9 +6,16 @@ import (
 	"os"
 
 	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/db"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+
+	err := godotenv.Load("../../../app.env")
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "can't load .env")
+    }
+
 	conn := db.Connect()
 	defer conn.Close()
 
