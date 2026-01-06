@@ -49,7 +49,7 @@ func main() {
 			log.Fatalf("database not reachable after retries: %v", err)
 		}
 
-		sleep := time.Duration(200*(1<<i)) * time.Millisecond
+		sleep := time.Duration(min(200*(1<<i), 60000)) * time.Millisecond
 		time.Sleep(sleep)
 	}
 	

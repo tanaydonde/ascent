@@ -50,4 +50,18 @@ CREATE TABLE IF NOT EXISTS user_problems(
     PRIMARY KEY (handle, problem_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_problems_status ON user_problems(handle, status);
+CREATE INDEX IF NOT EXISTS idx_user_problems_status
+ON user_problems(handle, status);
+
+CREATE INDEX IF NOT EXISTS idx_problems_tags_gin
+ON problems USING GIN (tags);
+
+CREATE INDEX IF NOT EXISTS idx_problems_rating
+ON problems (rating);
+
+CREATE INDEX IF NOT EXISTS idx_user_problems_solved_lookup
+ON user_problems (handle, problem_id)
+WHERE status = 'solved';
+
+CREATE INDEX IF NOT EXISTS idx_user_problems_recent
+ON user_problems (handle, status, last_attempted_at DESC);

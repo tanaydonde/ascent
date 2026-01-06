@@ -106,8 +106,6 @@ func saveProblemsToDB(tagMap map[string]string, conn *pgxpool.Pool) {
 	if err := tx.Commit(context.Background()); err != nil {
 		panic(err)
 	}
-
-	fmt.Println("all rated problems saved successfully")
 }
 
 func createTopics(tagMap map[string]string, conn *pgxpool.Pool) {

@@ -22,7 +22,7 @@ func (s *MasteryService) Sync(handle string) error {
 }
 
 func (s *MasteryService) GetAllStats(handle string) (map[string]MasteryResult, error) {
-    return getAllStats(s.conn, handle, s.tagMap)
+    return getAllStats(s.conn, handle)
 }
 
 func (s *MasteryService) UpdateSubmission(handle string, problem ProblemSolveInput) error {

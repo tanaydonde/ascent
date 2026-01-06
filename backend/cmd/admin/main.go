@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
+	"time"
 
-	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/db"
 	"github.com/joho/godotenv"
+	"github.com/tanaydonde/cf-curriculum-planner/backend/internal/db"
 )
 
 func main() {
@@ -17,6 +19,25 @@ func main() {
     }
 
 	conn := db.Connect()
+
+	for i := 0; i < 15; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		err := conn.Ping(ctx)
+		cancel()
+
+		if err == nil {
+			break
+		}
+
+		if i == 14 {
+			log.Fatalf("database not reachable after retries: %v", err)
+		}
+
+		sleep := time.Duration(min(200*(1<<i), 60000)) * time.Millisecond
+		time.Sleep(sleep)
+	}
+
+
 	defer conn.Close()
 
 	fmt.Println("successfully connected to the database")
