@@ -19,7 +19,7 @@ const LogProblems = () => {
     setMessage(null);
 
     try {
-      const res = await fetch(`http://localhost:8080/api/submit/${handle}`, {
+      const res = await fetch(`https://ascent-backend-842l.onrender.com/api/submit/${handle}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -52,7 +52,7 @@ const LogProblems = () => {
     setMessage(null);
 
     try {
-      const res = await fetch(`http://localhost:8080/api/sync/${handle}`, {
+      const res = await fetch(`https://ascent-backend-842l.onrender.com/api/sync/${handle}`, {
         method: 'POST'
       });
 

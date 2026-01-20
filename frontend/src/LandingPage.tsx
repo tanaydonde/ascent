@@ -17,7 +17,7 @@ const LandingPage = ({ onSuccess }: LandingPageProps) => {
     setError('');
 
     try {
-      const res = await fetch(`http://localhost:8080/api/sync/${handle}`, {
+      const res = await fetch(`https://ascent-backend-842l.onrender.com/api/sync/${handle}`, {
         method: 'POST',
       });
 

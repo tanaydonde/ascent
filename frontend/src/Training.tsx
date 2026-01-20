@@ -176,7 +176,7 @@ const Training = () => {
   useEffect(() => {
     const fetchGraph = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/graph');
+        const res = await fetch('https://ascent-backend-842l.onrender.com/api/graph');
         if (!res.ok) throw new Error('failed to fetch graph');
         const data: { nodes: BackendNode[]; edges: BackendEdge[] } = await res.json();
 
@@ -250,7 +250,7 @@ const Training = () => {
       const inc = DIFFICULTY_CONFIG[difficulty].inc;
       
       try {
-        const res = await fetch(`http://localhost:8080/api/problems/${selectedTopic.slug}?handle=${handle}&inc=${inc}`);
+        const res = await fetch(`https://ascent-backend-842l.onrender.com/api/problems/${selectedTopic.slug}?handle=${handle}&inc=${inc}`);
         if (!res.ok) throw new Error('failed to fetch');
         const data = await res.json();
         setProblems(data || []);
@@ -285,7 +285,7 @@ const Training = () => {
     }
 
     try {
-      const res = await fetch(`http://localhost:8080/api/submit/${handle}`, {
+      const res = await fetch(`https://ascent-backend-842l.onrender.com/api/submit/${handle}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

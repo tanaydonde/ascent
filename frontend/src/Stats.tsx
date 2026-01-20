@@ -95,7 +95,7 @@ const Stats = () => {
       if (!handle) return;
 
       try {
-        const response = await fetch(`http://localhost:8080/api/stats/${handle}`); 
+        const response = await fetch(`https://ascent-backend-842l.onrender.com/api/stats/${handle}`); 
         const json: Record<string, MasteryResult> = await response.json();
 
         const chartData: TopicData[] = Object.entries(json).map(([key, value]) => ({

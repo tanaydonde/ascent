@@ -121,7 +121,7 @@ const Challenge = () => {
       
       try {
         setLoading(true);
-        const res = await fetch(`http://localhost:8080/api/daily?handle=${handle}`);
+        const res = await fetch(`https://ascent-backend-842l.onrender.com/api/daily?handle=${handle}`);
         if (!res.ok) throw new Error('Failed to fetch challenge problem');
         
         const data = await res.json();
@@ -145,7 +145,7 @@ const Challenge = () => {
     setSubmitError(null);
 
     try {
-      const res = await fetch(`http://localhost:8080/api/submit/${handle}`, {
+      const res = await fetch(`https://ascent-backend-842l.onrender.com/api/submit/${handle}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

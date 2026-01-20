@@ -21,8 +21,8 @@ const RecentActivity = () => {
       setLoading(true)
       try {
         const [resSolved, resUnsolved] = await Promise.all([
-          fetch(`http://localhost:8080/api/recent/solved/${handle}`),
-          fetch(`http://localhost:8080/api/recent/unsolved/${handle}`),
+          fetch(`https://ascent-backend-842l.onrender.com/api/recent/solved/${handle}`),
+          fetch(`https://ascent-backend-842l.onrender.com/api/recent/unsolved/${handle}`),
         ]);
 
         const solvedData = resSolved.ok ? await resSolved.json() : [];
