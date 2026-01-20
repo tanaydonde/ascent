@@ -2,6 +2,9 @@
 
 A personalized Codeforces analytics and recommendation engine that tracks topic mastery over time and suggests problems based on skill progression and recent activity.
 
+## Live Demo
+https://tanaydonde.github.io/ascent
+
 ## Features
 - Topic-level mastery and peak tracking
 - Time-binned progression modeling
@@ -16,8 +19,8 @@ A personalized Codeforces analytics and recommendation engine that tracks topic 
 - **Data:** Codeforces API
 
 ## Deployment
-- Database deployed on **Neon**
-- Backend deployed on **Render**
-- Frontend deployed on **GitHub Pages**
+- **Database:** Neon
+- **Backend:** Render
+- **Frontend:** GitHub Pages
 
 > Note: Backend is hosted on Render (free tier), so the first connection may take ~30–60 seconds.
