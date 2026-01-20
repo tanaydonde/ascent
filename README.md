@@ -20,4 +20,4 @@ A personalized Codeforces analytics and recommendation engine that tracks topic 
 - Backend deployed on **Render**
 - Frontend deployed on **GitHub Pages**
 
-> Note: Note: Backend is hosted on Render (free tier), so the first connection may take ~30–60 seconds.
+> Note: Backend is hosted on Render (free tier), so the first connection may take ~30–60 seconds.
